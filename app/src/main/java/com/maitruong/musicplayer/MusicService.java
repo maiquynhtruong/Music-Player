@@ -1,5 +1,6 @@
 package com.maitruong.musicplayer;
 
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ContentUris;
 import android.content.Intent;
@@ -11,10 +12,12 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.support.annotation.Nullable;
+import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Random;
 
 /**
 
@@ -27,13 +30,17 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private ArrayList<Song> songList;
     private int songPos;
     private final IBinder musicBind = new MusicBinder();
-
+    private String songTitle = "";
+    private static final int NotificationID = 1;
+    private boolean shuffle = false;
+    private Random random;
     @Override
     public void onCreate() {
         super.onCreate();
         songPos = 0;
         player = new MediaPlayer();
         initMusicPlayer();
+        random = new Random();
     }
 
     void initMusicPlayer() {
@@ -44,9 +51,14 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         player.setOnCompletionListener(this); // when MediaPlayer is completed
     }
 
+    public void setShuffle () {
+        if (shuffle) shuffle = false;
+        else shuffle = true;
+    }
     public void playSong() {
         player.reset(); // start music from the beginning
         Song curSong = songList.get(songPos);
+        songTitle = curSong.getTitle();
         long id = curSong.getId();
         Uri songUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
         try {
@@ -109,11 +121,34 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     @Override
     public void onPrepared(MediaPlayer mp) {
         player.start();
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setContentIntent(pendingIntent).setSmallIcon(R.drawable.ic_play).setTicker(songTitle)
+        .setOngoing(true).setContentTitle("Playing").setContentText(songTitle);
+        // Notifications are issued by sending them to the NotificationManager system service
+        startForeground(NotificationID, builder.build());
+
+    }
+
+    @Override
+    public void onDestroy() {
+        stopForeground(true);
     }
 
     public void playNext() {
-        songPos++;
-        if (songPos >= songList.size()) songPos = 0;
+        if (shuffle) {
+            int newSong = songPos;
+            while (newSong == songPos) {
+                newSong = random.nextInt(songList.size());
+            }
+            songPos = newSong;
+        } else {
+            songPos++;
+            if (songPos >= songList.size()) songPos = 0;
+        }
         playSong();
     }
 

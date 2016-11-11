@@ -36,6 +36,9 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     private boolean musicBound = false; // Will control Service from the main class, so we will need to
                                         // bind the service with this class
     private MusicController controller;
+    private boolean paused = false; // to interact with the control when user returning to app after leaving it
+    private boolean playBackPaused = false; // interact with the control when playback is paused
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     @Override
     protected void onStart() {
-        // start Service instance or create one when MainActivity instance start. This service will be connected by musicConnection and will be passed list of songs.
+        // start Service instance or create one when MainActivity idnstance start. This service will be connected by musicConnection and will be passed list of songs.
         super.onStart();
         if (playIntent == null) {
             playIntent = new Intent(this, MusicService.class); // specifies what service to start
@@ -94,6 +97,27 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                                                                                 // pass the song list and have control of the service latter
             startService(playIntent);
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        paused = true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (paused) {
+            setUpController();
+            paused = false;
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        controller.hide();
+        super.onStop();
     }
 
     public void getSongList(){
@@ -133,6 +157,12 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     public void songPicked(View view) {
         musicService.setSong(Integer.parseInt(view.getTag().toString()));
         musicService.playSong();
+        if (playBackPaused) {
+            setUpController();
+            playBackPaused = false;
+
+        }
+        controller.show();
     }
 
     /**
@@ -144,6 +174,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_shuffle:
+                musicService.setShuffle();
                 break;
             case R.id.action_end:
                 stopService(playIntent);
@@ -186,10 +217,21 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     public void playNext() {
         musicService.playNext();
+        if (playBackPaused) {
+            setUpController();
+            playBackPaused = false;
+        }
+        controller.show();
     }
 
     public void playPrev() {
         musicService.playPrev();
+        if (playBackPaused) {
+            // reset controller and update playBackPaused
+            setUpController();
+            playBackPaused = false;
+        }
+        controller.show();
     }
 
     @Override
@@ -200,6 +242,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     @Override
     public void pause() {
         musicService.pause();
+        playBackPaused = true;
     }
 
     @Override
