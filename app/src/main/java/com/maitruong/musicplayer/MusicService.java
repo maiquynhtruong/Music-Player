@@ -24,7 +24,7 @@ import java.util.Random;
  */
 
 public class MusicService extends Service implements MediaPlayer.OnPreparedListener,
-        MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener{
+        MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener, AudioManager.OnAudioFocusChangeListener{
 
     private MediaPlayer player;
     private ArrayList<Song> songList;
@@ -41,6 +41,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         player = new MediaPlayer();
         initMusicPlayer();
         random = new Random();
+        AudioManager manager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        manager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
     }
 
     void initMusicPlayer() {
@@ -86,6 +88,28 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         songList = songsList;
     }
 
+    @Override
+    public void onAudioFocusChange(int focusChange) {
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+                if (player == null) initMusicPlayer();
+                else if (!player.isPlaying()) player.start();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+                if (player.isPlaying()) player.stop();
+                player.release();
+                player = null;
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                if (player.isPlaying()) player.pause();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                if (player.isPlaying()) player.setVolume(0.1f, 0.1f);
+                break;
+
+        }
+    }
+
     /**
      * Interface for communication between client and service
      */
@@ -110,12 +134,17 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onCompletion(MediaPlayer mp) {
-        playNext();
+        if (player.getCurrentPosition() > 0) {
+            player.reset();
+            playNext();
+        }
     }
 
     @Override
     public boolean onError(MediaPlayer mp, int what, int extra) {
+        mp.reset();
         return false;
+
     }
 
     @Override
@@ -129,12 +158,13 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         builder.setContentIntent(pendingIntent).setSmallIcon(R.drawable.ic_play).setTicker(songTitle)
         .setOngoing(true).setContentTitle("Playing").setContentText(songTitle);
         // Notifications are issued by sending them to the NotificationManager system service
-        startForeground(NotificationID, builder.build());
+startForeground(NotificationID, builder.build());
 
     }
 
     @Override
     public void onDestroy() {
+        if (player != null) player.release();
         stopForeground(true);
     }
 
