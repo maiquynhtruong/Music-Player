@@ -3,6 +3,7 @@ Simple music player on Android.
 
 Some screen shot:
 
-Current app GUI:
-![alt tag](app/src/main/res/drawable/Screenshot_20161111-225456.png=250x250)
-![alt tag](app/src/main/res/drawable/Screenshot_20161111-225710.png=250x250)
+<p>Current app GUI:</p>
+<img src="app/src/main/res/drawable/Screenshot_20161111-225456.png" width="350" height="500"><br>
+<p>Notification when playback is active:</p>
+<img src="app/src/main/res/drawable/Screenshot_20161111-225710.png" width="350" height="500">
